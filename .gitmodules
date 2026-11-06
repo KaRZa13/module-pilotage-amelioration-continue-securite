@@ -1,0 +1,12 @@
+[submodule "api-gateway"]
+	path = api-gateway
+	url = git@github.com:KaRZa13/api-gateway.git
+[submodule "pre-commit"]
+	path = pre-commit
+	url = git@github.com:KaRZa13/pre-commit.git
+[submodule "dast-owasp"]
+	path = dast-owasp
+	url = git@github.com:KaRZa13/dast-owasp.git
+[submodule "sonarqube-nova"]
+	path = sonarqube-nova
+	url = git@github.com:KaRZa13/sonarqube-nova.git

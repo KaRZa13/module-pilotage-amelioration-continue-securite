@@ -1,0 +1,46 @@
+# Livrable 3 — Inventaire des données importantes
+
+> Partie 4 de l'énoncé. Besoins notés de 1 (faible) à 4 (critique) selon l'échelle du TP.
+> C = confidentialité, I = intégrité, D = disponibilité.
+> Lorsque l'emplacement n'est pas établi par la description du SI : « à confirmer auprès de la DSI ».
+
+## 1. Inventaire
+
+| ID | Donnée | Utilisation | Système concerné | Responsable | C | I | D | Conséquences d'une perte / divulgation / modification | Besoins de surveillance |
+|---|---|---|---|---|---|---|---|---|---|
+| D01 | **Données clients** (coordonnées, contrats, historique, facturation) | Gestion des clients (A01) | Applications métier (A16) / PostgreSQL (A18) ; RDS (A19) à confirmer auprès de la DSI ; documents dans SharePoint / Samba | À désigner (pressenti : direction commerciale ; DPO pour le volet données personnelles) | 4 | 4 | 3 | Divulgation : perte de confiance, notification RGPD, atteinte à l'image. Modification : factures ou RIB falsifiés (fraude). Perte : facturation bloquée | Accès massifs ou hors horaires aux tables clients, exports, modifications des coordonnées bancaires, comptes à privilèges sur la base |
+| D02 | **Données de production** (projets, affectations, suivi des prestations) | Production des services (A02) | Applications Web / API (A16, A17), PostgreSQL (A18), Kafka (A20) | À désigner (pressenti : direction des opérations) | 3 | 4 | 3 | Modification : affectations ou temps faux → erreurs de facturation et de pilotage. Divulgation : fuite d'informations de projets clients. Perte : prestations non suivies | Modifications en masse, accès par des comptes inattendus, erreurs d'autorisation des API |
+| D03 | **Documents internes** (procédures, documents commerciaux, partages) | Communication (A03), toutes activités | Serveur de fichiers Samba (A21), SharePoint (A37) | À désigner (pressenti : chaque direction pour ses documents ; DSI pour le stockage) | 3 | 3 | 2 | Divulgation : fuite d'offres commerciales ou de procédures internes. Chiffrement par rançongiciel : perte d'accès aux documents | Volumétrie anormale de modifications / renommages (rançongiciel), partages externes SharePoint, accès depuis des comptes inhabituels |
+| D04 | **Identités et habilitations** (comptes, rôles, groupes, droits, facteurs MFA) | Authentification et autorisation | Keycloak (A14), AWS IAM (A15), RBAC Kubernetes (A23), droits GitLab (A27) ; annuaire source éventuel à confirmer auprès de la DSI | À désigner (pressenti : responsable IAM / DSI ; RH pour les arrivées et départs) | 4 | 4 | 4 | Modification : élévation de privilèges, création de comptes cachés. Divulgation : usurpation. Indisponibilité : plus personne ne se connecte aux applications | Échecs d'authentification, connexions admin, création / suppression de comptes, modifications de rôles et de politiques IAM, désactivation du MFA |
+| D05 | **Secrets techniques** (mots de passe de bases, tokens, clés API, certificats, clés SSH) | Accès des applications et des automates aux ressources | HashiCorp Vault (A35) ; également probables dans Secrets Kubernetes (A24), variables CI GitLab (A28), état Terraform (A29), inventaires Ansible (A30) — à confirmer auprès de la DSI | À désigner (pressenti : RSSI + équipe plateforme) | 4 | 4 | 3 | Divulgation : compromission directe des services protégés (bases, AWS, API). Indisponibilité de Vault : applications incapables de démarrer | Lectures de secrets inhabituelles, création de tokens, secrets en clair détectés dans le code (SonarQube / analyse de dépôts), modification des politiques Vault |
+| D06 | **Code source, IaC et configurations** | Développement, déploiement, administration | GitLab (A27), Terraform (A29), Ansible (A30) | À désigner (pressenti : responsable des développements ; responsable Cloud pour l'IaC) | 3 | 4 | 3 | Modification : porte dérobée déployée en production, infrastructure altérée. Divulgation : propriété intellectuelle, découverte de faiblesses | Modifications des branches protégées, des fichiers de pipeline, des permissions ; poussées forcées ; ajout de dépendances |
+| D07 | **Images Docker et artefacts** | Déploiement des applications | Registre d'images (A26 — Harbor / GitLab Registry / ECR, à confirmer auprès de la DSI), Amazon S3 (A33) | À désigner (pressenti : équipe DevOps) | 2 | 4 | 3 | Modification : image piégée déployée sur Kubernetes. Perte : impossibilité de redéployer rapidement | Push d'images hors pipeline, images déployées sans scan Trivy ou non signées, vulnérabilités critiques dans les images en production |
+| D08 | **Données Cloud** (objets S3, configurations AWS, données applicatives Cloud) | Applications hébergées dans AWS, stockage | Amazon S3 (A33), RDS (A19), configurations VPC / IAM (A31, A15) | À désigner (pressenti : responsable Cloud) | 3 | 3 | 3 | Divulgation : bucket rendu public. Modification : ressources ou règles réseau altérées | Changement de politique de bucket ou d'ACL, création de ressources, modification des Security Groups |
+| D09 | **Sauvegardes** | Restauration après incident | Serveur de sauvegarde Restic / Veeam (A36), Amazon S3 (A33) | À désigner (pressenti : responsable infrastructure) | 4 | 4 | 4* | Divulgation : copie complète des données sensibles. Altération / suppression : **aucune reprise possible après rançongiciel** | Succès / échec des travaux, suppression ou modification de sauvegardes, accès au serveur de sauvegarde, résultat des tests de restauration |
+| D10 | **Données de sécurité** (journaux d'authentification, événements système, alertes) | Détection, investigation, preuve | Wazuh (A42), OpenSearch (A43), Loki (A44) | À désigner (pressenti : RSSI) | 3 | 4 | 3 | Altération / effacement : incident non détecté ou non prouvable. Divulgation : données personnelles (IP, comptes), connaissance des mécanismes de détection | Arrêt d'un agent ou d'une source, trous dans la collecte, suppression d'index, accès aux tableaux de bord |
+| D11 | **Événements applicatifs et métier en transit** | Communication entre applications, analyse | Apache Kafka (A20) | À désigner (pressenti : équipe plateforme + propriétaires des applications productrices) | 3 | 3 | 3 | Injection d'événements falsifiés propagée à plusieurs applications ; perte d'événements métier | Clients non autorisés, modification des ACL, création / suppression de topics |
+| D12 | **Messagerie et échanges professionnels** | Communication (A03) | Microsoft 365 (A37), Discord (A38 — statut à confirmer auprès de la DSI) | À désigner (pressenti : DSI — administrateur M365) | 3 | 3 | 3 | Boîte compromise : fraude, hameçonnage interne. Fuite d'échanges avec les clients | Règles de transfert automatique créées, connexions depuis des pays inhabituels, envois massifs, partages de fichiers externes |
+
+\* Disponibilité des sauvegardes : le besoin est faible au quotidien mais **critique au moment d'une restauration**, d'où la note 4.
+
+## 2. Question de réflexion (4.3)
+
+### Une base PostgreSQL et un serveur de sauvegarde sont-ils importants pour les mêmes raisons ?
+
+**Non.** Ils contiennent en partie les mêmes données, mais leur rôle dans la sécurité est différent.
+
+| Critère | PostgreSQL (A18) | Serveur de sauvegarde (A36) |
+|---|---|---|
+| Confidentialité | Données clients et de production **actuelles**, accessibles en continu par les applications | **Copie de toutes les données** (souvent de plusieurs bases et de plusieurs dates) : une seule compromission expose plus que chaque base prise isolément |
+| Intégrité | Une modification affecte immédiatement les processus métier (facturation, affectations) | Une sauvegarde altérée ou piégée ne se voit que **le jour où l'on restaure** — trop tard |
+| Disponibilité | Besoin **immédiat et permanent** : l'activité s'arrête si la base est indisponible | Besoin faible au quotidien, mais **vital** lors d'un incident |
+| Capacité de restauration | Elle *dépend* de la sauvegarde | Elle *est* la capacité de restauration : c'est le dernier recours contre un rançongiciel, une suppression ou une corruption |
+
+### Pourquoi la sécurité doit tenir compte des quatre dimensions
+
+- **Confidentialité** : protéger contre la divulgation (données clients, secrets). Une sauvegarde mal protégée annule les efforts faits sur la base de production.
+- **Intégrité** : garantir que les données sont exactes. Une donnée fausse mais disponible peut être plus dangereuse qu'une donnée absente (factures, droits d'accès).
+- **Disponibilité** : garantir que l'activité peut fonctionner dans les délais attendus.
+- **Capacité de restauration** : les trois premiers critères décrivent l'état *normal* ; la restauration décrit la capacité à **revenir** à un état normal après un incident. Les attaquants (rançongiciels) ciblent en priorité les sauvegardes pour supprimer cette capacité. Il faut donc des sauvegardes isolées (hors ligne ou immuables), séparées des identités d'administration courantes, et **testées** régulièrement.
+
+> **Point d'attention pour NOVA SERVICES** : des sauvegardes sont stockées dans S3 [C]. Si les mêmes identités AWS IAM permettent d'administrer la production et de supprimer les sauvegardes, une seule compromission IAM peut détruire à la fois les données et leur copie. À vérifier (voir [10-referentiel-ANSSI.md](10-referentiel-ANSSI.md)).
