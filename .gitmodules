@@ -10,3 +10,6 @@
 [submodule "sonarqube-nova"]
 	path = sonarqube-nova
 	url = git@github.com:KaRZa13/sonarqube-nova.git
+[submodule "traefik"]
+	path = traefik
+	url = git@github.com:KaRZa13/traefik.git
